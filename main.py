@@ -20,6 +20,7 @@ app.add_middleware(
 
 # In-memory data store
 allowed_vote = False
+
 fake_votes_db = {
     "allies" : 0,
     "nazi" : 0,
@@ -40,11 +41,17 @@ def read_votes():
 
 @app.delete("/votes/reset")
 def reset_vote():
+    global allowed_vote
     fake_votes_db["allies"] = 0
     fake_votes_db["nazi"] = 0
     allowed_vote = False
     return {"votes": fake_votes_db}
 
+@app.put("/votes/start")
+def started_vote(data: AllowedVote):
+    global allowed_vote
+    allowed_vote = bool(data.allowed)
+    return {"allowed": allowed_vote}
 
 @app.put("/votes")
 def update_votes(data: VoteUpdate):
@@ -53,21 +60,18 @@ def update_votes(data: VoteUpdate):
     if allowed_vote:
         if vote_value == "true":
             fake_votes_db["allies"] += 1
+            return {"voted": "allies"}
         elif vote_value == "false":
             fake_votes_db["nazi"] += 1
+            return {"voted": "nazi"}
         else:
             return {"error": "El valor 'vote' debe ser 'True' o 'False'"}
     else:
-        pass
-    return {"votes": fake_votes_db}
-
-@app.put("/votes/start")
-def started_vote(data: AllowedVote):
-    allowed_vote = bool(data.allowed)
-    return {"allowed": allowed_vote}
+        return {"error": "AUN NO SE HA INICIADO LA VOTACION!!!"}
 
 @app.delete("/votes/reset")
 def reset_vote():
+    global allowed_vote
     fake_votes_db["allies"] = 0
     fake_votes_db["nazi"] = 0
     allowed_vote = False
