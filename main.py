@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from uvicorn import run
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+import json
 
 app = FastAPI()
 
@@ -21,13 +22,16 @@ app.add_middleware(
 # In-memory data store
 allowed_vote = False
 
-fake_votes_db = {
-    "allies" : 0,
-    "nazi" : 0,
-}
+# fake_votes_db = {
+#     "allies" : 0,
+#     "nazi" : 0,
+# }
+
+fake_votes_db = {}
 
 class VoteUpdate(BaseModel):
-    vote: str
+    user: str
+    vote: bool
 
 class AllowedVote(BaseModel):
     allowed: bool
@@ -37,13 +41,21 @@ class ResetVote(BaseModel):
 
 @app.get("/votes/results")
 def read_votes():
-    return {"votes": fake_votes_db}
+    true_count = 0
+    false_count = 0
+
+    for valor in fake_votes_db.values():
+        if isinstance(valor, bool):
+            if valor:
+                true_count += 1
+            else:
+                false_count += 1
+    return {"dict": fake_votes_db,"allies": true_count, "nazi": false_count}
 
 @app.delete("/votes/reset")
 def reset_vote():
     global allowed_vote
-    fake_votes_db["allies"] = 0
-    fake_votes_db["nazi"] = 0
+    fake_votes_db = {}
     allowed_vote = False
     return {"votes": fake_votes_db}
 
@@ -55,27 +67,17 @@ def started_vote(data: AllowedVote):
 
 @app.put("/votes")
 def update_votes(data: VoteUpdate):
-    vote_value = data.vote.lower()  # Convertir a minúsculas para manejar "True" o "False"
+    vote_value = bool(data.vote)  # Convertir a minúsculas para manejar "True" o "False"
 
     if allowed_vote:
-        if vote_value == "true":
-            fake_votes_db["allies"] += 1
-            return {"voted": "allies"}
-        elif vote_value == "false":
-            fake_votes_db["nazi"] += 1
-            return {"voted": "nazi"}
+        if isinstance(vote_value, bool):
+            fake_votes_db.update({str(data.user) : vote_value})
+            return False
         else:
             return {"error": "El valor 'vote' debe ser 'True' o 'False'"}
     else:
         return {"error": "AUN NO SE HA INICIADO LA VOTACION!!!"}
 
-@app.delete("/votes/reset")
-def reset_vote():
-    global allowed_vote
-    fake_votes_db["allies"] = 0
-    fake_votes_db["nazi"] = 0
-    allowed_vote = False
-    return {"votes": fake_votes_db}
 
 if __name__ == "__main__":
     # , host="0.0.0.0"
